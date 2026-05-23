@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+  .dark body {
+    @apply bg-slate-950 text-slate-100;
+  }
+}
+
+/* Printing from dark mode: avoid invisible text / clipped flex layouts in some browsers */
+@media print {
+  html,
+  html.dark {
+    color-scheme: light;
+  }
+  body,
+  .dark body {
+    background: #fff !important;
+    color: #0f172a !important;
+  }
+}
