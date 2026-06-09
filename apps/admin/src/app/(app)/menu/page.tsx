@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { MenuItemThumb } from "@/components/menu/MenuItemThumb";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
 interface Category {
@@ -17,6 +18,8 @@ interface MenuItem {
   _id: string;
   name: string;
   description?: string;
+  ingredients?: string | null;
+  image?: string | null;
   basePrice: number;
   isAvailable: boolean;
   isVeg: boolean;
@@ -29,6 +32,8 @@ type ItemView = "table" | "grouped";
 const emptyItem = {
   name: "",
   description: "",
+  ingredients: "",
+  image: "",
   basePrice: 0,
   categoryId: "",
   isVeg: true,
@@ -113,6 +118,8 @@ export default function MenuPage() {
     setItemForm({
       name: item.name,
       description: item.description || "",
+      ingredients: item.ingredients || "",
+      image: item.image || "",
       basePrice: item.basePrice,
       categoryId:
         typeof item.categoryId === "object" ? item.categoryId._id : (item.categoryId as string),
@@ -452,6 +459,9 @@ export default function MenuPage() {
                             key={item._id}
                             className="border-t border-slate-100 dark:border-slate-800"
                           >
+                            <td className="p-4 w-14">
+                              <MenuItemThumb src={item.image} name={item.name} />
+                            </td>
                             <td className="p-4 font-medium">{item.name}</td>
                             <td className="p-4">₹{item.basePrice}</td>
                             <td className="p-4">{item.isVeg ? "Veg" : "Non-Veg"}</td>
@@ -494,6 +504,7 @@ export default function MenuPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 dark:bg-slate-800">
                 <tr>
+                  <th className="text-left p-4 w-14"> </th>
                   <th className="text-left p-4">Name</th>
                   <th className="text-left p-4">Category</th>
                   <th className="text-left p-4">Price</th>
@@ -505,7 +516,7 @@ export default function MenuPage() {
               <tbody>
                 {filteredItems.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-slate-400">
+                    <td colSpan={7} className="p-8 text-center text-slate-400">
                       {categoryFilter === "all"
                         ? "No menu items yet."
                         : "No items in this category."}
@@ -517,6 +528,9 @@ export default function MenuPage() {
                       key={item._id}
                       className="border-t border-slate-100 dark:border-slate-800"
                     >
+                      <td className="p-4">
+                        <MenuItemThumb src={item.image} name={item.name} />
+                      </td>
                       <td className="p-4 font-medium">{item.name}</td>
                       <td className="p-4">{getCategoryName(item)}</td>
                       <td className="p-4">₹{item.basePrice}</td>
@@ -585,6 +599,38 @@ export default function MenuPage() {
                   className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700"
                   rows={2}
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Ingredients & allergens</label>
+                <textarea
+                  value={itemForm.ingredients}
+                  onChange={(e) =>
+                    setItemForm({ ...itemForm, ingredients: e.target.value })
+                  }
+                  placeholder="e.g. Contains dairy, nuts. Shown when guests tap the dish for details."
+                  className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Image URL</label>
+                <input
+                  type="text"
+                  placeholder="https://… or /uploads/dish.jpg"
+                  value={itemForm.image}
+                  onChange={(e) => setItemForm({ ...itemForm, image: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  Full URL or a path on the API host (e.g. <code className="text-[11px]">/uploads/…</code>
+                  ). Shown on the guest menu and here as a thumbnail.
+                </p>
+                {itemForm.image.trim() ? (
+                  <div className="mt-3 flex items-center gap-3">
+                    <MenuItemThumb src={itemForm.image} name={itemForm.name || "?"} />
+                    <span className="text-xs text-slate-400">Preview</span>
+                  </div>
+                ) : null}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

@@ -6,6 +6,8 @@ import axios from "axios";
 import {
   Bell,
   ChevronRight,
+  Clock,
+  Eye,
   Minus,
   Plus,
   Receipt,
@@ -14,22 +16,43 @@ import {
   UtensilsCrossed,
   Wifi,
   WifiOff,
+  X,
   XCircle,
 } from "lucide-react";
 import type { Socket } from "socket.io-client";
 import { createSocket } from "@/lib/socket";
 import { formatCurrency } from "@/lib/utils";
+import { resolveMenuImageUrl } from "@/lib/menuImage";
 import { WaitWhileCooking } from "@/components/order/WaitWhileCooking";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+interface MenuVariant {
+  _id?: string;
+  name: string;
+  price: number;
+  isDefault?: boolean;
+}
+
+interface MenuAddon {
+  _id?: string;
+  name: string;
+  price: number;
+  maxQuantity?: number;
+}
 
 interface MenuItem {
   _id: string;
   name: string;
   basePrice: number;
   description?: string;
+  ingredients?: string | null;
   image?: string | null;
   isVeg: boolean;
+  preparationTime?: number;
+  tags?: string[];
+  variants?: MenuVariant[];
+  addons?: MenuAddon[];
 }
 
 interface MenuGroup {
@@ -157,16 +180,6 @@ function normalizeOrder(raw: Record<string, unknown>): ActiveOrder {
   };
 }
 
-/** Resolve menu image URL for API-relative paths or absolute URLs */
-function resolveMenuImageUrl(src?: string | null): string | undefined {
-  if (!src || typeof src !== "string") return undefined;
-  const t = src.trim();
-  if (!t) return undefined;
-  if (t.startsWith("http://") || t.startsWith("https://")) return t;
-  const base = API_URL.replace(/\/$/, "");
-  return t.startsWith("/") ? `${base}${t}` : `${base}/${t}`;
-}
-
 function MenuDishPhoto({
   src,
   alt,
@@ -177,7 +190,7 @@ function MenuDishPhoto({
   fallbackLetter: string;
 }) {
   const [broken, setBroken] = useState(false);
-  const url = resolveMenuImageUrl(src);
+  const url = resolveMenuImageUrl(src, API_URL.replace(/\/$/, ""));
   if (!url || broken) {
     return (
       <div className="relative h-full w-full overflow-hidden bg-gradient-to-br from-stone-200 via-amber-100/80 to-orange-200/90">
@@ -218,6 +231,7 @@ export default function QROrderPage() {
   const [socketConnected, setSocketConnected] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [cancelModal, setCancelModal] = useState<ActiveOrder | null>(null);
+  const [menuDetailItem, setMenuDetailItem] = useState<MenuItem | null>(null);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -522,7 +536,7 @@ export default function QROrderPage() {
     return (
       <div
         key={item._id}
-        className="group relative flex gap-4 overflow-hidden rounded-2xl border border-stone-200/80 bg-white/90 p-3 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-sm transition hover:border-amber-200/80 hover:shadow-md"
+        className="group relative flex gap-4 overflow-hidden rounded-2xl border border-stone-200/80 bg-white/90 p-3 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-sm transition hover:border-amber-200/80 hover:shadow-md text-left"
       >
         <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl shadow-inner ring-1 ring-black/5 sm:h-32 sm:w-32">
           <MenuDishPhoto
@@ -551,42 +565,53 @@ export default function QROrderPage() {
               </p>
             )}
           </div>
-          <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-lg font-bold tabular-nums text-amber-700">
               {formatCurrency(item.basePrice)}
             </p>
-            {qty === 0 ? (
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => addToCart(item)}
-                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-600 to-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-orange-600/25 transition hover:from-amber-500 hover:to-orange-500 active:scale-[0.98]"
+                onClick={() => setMenuDetailItem(item)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-stone-200/90 bg-white px-3.5 py-2 text-sm font-semibold text-stone-700 shadow-sm ring-1 ring-black/[0.04] transition hover:border-amber-300/80 hover:bg-amber-50/50 hover:text-stone-900 active:scale-[0.98]"
+                aria-label={`View details for ${item.name}`}
               >
-                <Plus className="h-4 w-4" />
-                Add
+                <Eye className="h-4 w-4 text-amber-700/90" aria-hidden />
+                View
               </button>
-            ) : (
-              <div className="flex items-center gap-1 rounded-full border border-stone-200 bg-stone-50/90 p-1 shadow-inner">
-                <button
-                  type="button"
-                  onClick={() => decrementFromCart(item)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-stone-600 transition hover:bg-white hover:shadow-sm"
-                  aria-label="Decrease quantity"
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <span className="min-w-[1.75rem] text-center text-sm font-bold tabular-nums text-stone-900">
-                  {qty}
-                </span>
+              {qty === 0 ? (
                 <button
                   type="button"
                   onClick={() => addToCart(item)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-sm transition hover:brightness-105 active:scale-95"
-                  aria-label="Increase quantity"
+                  className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-600 to-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-orange-600/25 transition hover:from-amber-500 hover:to-orange-500 active:scale-[0.98]"
                 >
                   <Plus className="h-4 w-4" />
+                  Add
                 </button>
-              </div>
-            )}
+              ) : (
+                <div className="flex items-center gap-1 rounded-full border border-stone-200 bg-stone-50/90 p-1 shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => decrementFromCart(item)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-stone-600 transition hover:bg-white hover:shadow-sm"
+                    aria-label="Decrease quantity"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className="min-w-[1.75rem] text-center text-sm font-bold tabular-nums text-stone-900">
+                    {qty}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => addToCart(item)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-sm transition hover:brightness-105 active:scale-95"
+                    aria-label="Increase quantity"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -817,6 +842,167 @@ export default function QROrderPage() {
           )}
         </section>
       </div>
+
+      {menuDetailItem && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-[55] max-w-lg mx-auto cursor-default bg-black/45 backdrop-blur-[2px]"
+            onClick={() => setMenuDetailItem(null)}
+            aria-label="Close dish details"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dish-detail-title"
+            className="fixed inset-x-0 bottom-0 z-[56] mx-auto flex max-h-[min(88dvh,40rem)] max-w-lg flex-col rounded-t-3xl border border-stone-200/90 bg-white shadow-[0_-12px_48px_rgba(0,0,0,0.18)]"
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-stone-100 px-4 py-3">
+              <p id="dish-detail-title" className="truncate pr-2 text-sm font-semibold text-stone-500">
+                Dish details
+              </p>
+              <button
+                type="button"
+                onClick={() => setMenuDetailItem(null)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-stone-500 transition hover:bg-stone-100"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-2">
+              <div className="relative mx-auto mb-4 aspect-[4/3] max-h-52 w-full overflow-hidden rounded-2xl ring-1 ring-black/5">
+                <MenuDishPhoto
+                  src={menuDetailItem.image}
+                  alt={menuDetailItem.name}
+                  fallbackLetter={menuDetailItem.name.slice(0, 1).toUpperCase()}
+                />
+              </div>
+              <div className="flex flex-wrap items-start gap-2">
+                <h2 className="text-xl font-bold leading-snug text-stone-900">{menuDetailItem.name}</h2>
+                <span
+                  className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ${
+                    menuDetailItem.isVeg
+                      ? "bg-emerald-50 text-emerald-800 ring-emerald-200/80"
+                      : "bg-rose-50 text-rose-800 ring-rose-200/80"
+                  }`}
+                >
+                  {menuDetailItem.isVeg ? "Veg" : "Non-veg"}
+                </span>
+              </div>
+              <p className="mt-3 text-2xl font-bold tabular-nums text-amber-700">
+                {formatCurrency(menuDetailItem.basePrice)}
+              </p>
+              {menuDetailItem.description ? (
+                <p className="mt-4 text-sm leading-relaxed text-stone-600">{menuDetailItem.description}</p>
+              ) : null}
+              {menuDetailItem.ingredients?.trim() ? (
+                <section className="mt-5 rounded-2xl border border-amber-100/90 bg-amber-50/40 p-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wide text-amber-900/80">
+                    Ingredients & allergens
+                  </h3>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-stone-800">
+                    {menuDetailItem.ingredients.trim()}
+                  </p>
+                </section>
+              ) : null}
+              {typeof menuDetailItem.preparationTime === "number" && menuDetailItem.preparationTime > 0 ? (
+                <p className="mt-4 flex items-center gap-2 text-sm text-stone-600">
+                  <Clock className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+                  <span>Usually ready in about {menuDetailItem.preparationTime} minutes.</span>
+                </p>
+              ) : null}
+              {menuDetailItem.tags && menuDetailItem.tags.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {menuDetailItem.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-700 ring-1 ring-stone-200/80"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {menuDetailItem.variants && menuDetailItem.variants.length > 0 ? (
+                <section className="mt-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wide text-stone-400">Sizes & options</h3>
+                  <ul className="mt-2 divide-y divide-stone-100 rounded-xl border border-stone-100 bg-stone-50/50 text-sm">
+                    {menuDetailItem.variants.map((v) => (
+                      <li key={String(v._id ?? `${v.name}-${v.price}`)} className="flex justify-between gap-3 px-3 py-2.5">
+                        <span className="text-stone-800">
+                          {v.name}
+                          {v.isDefault ? (
+                            <span className="ml-1.5 text-xs font-normal text-stone-400">(default)</span>
+                          ) : null}
+                        </span>
+                        <span className="shrink-0 font-semibold tabular-nums text-amber-800">
+                          {formatCurrency(v.price)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+              {menuDetailItem.addons && menuDetailItem.addons.length > 0 ? (
+                <section className="mt-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wide text-stone-400">Add-ons</h3>
+                  <ul className="mt-2 space-y-1.5 text-sm text-stone-700">
+                    {menuDetailItem.addons.map((a) => (
+                      <li key={String(a._id ?? `${a.name}-${a.price}`)} className="flex justify-between gap-3">
+                        <span>{a.name}</span>
+                        <span className="shrink-0 tabular-nums text-stone-600">
+                          {a.price > 0 ? `+${formatCurrency(a.price)}` : "Included"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+            </div>
+            <div
+              className="shrink-0 border-t border-stone-100 bg-white px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-stone-500">Add to your table order</p>
+                {getCartQty(menuDetailItem._id) === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => addToCart(menuDetailItem)}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-600 to-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-orange-600/25 transition hover:from-amber-500 hover:to-orange-500 active:scale-[0.98]"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add to cart
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1 rounded-full border border-stone-200 bg-stone-50/90 p-1 shadow-inner">
+                    <button
+                      type="button"
+                      onClick={() => decrementFromCart(menuDetailItem)}
+                      className="flex h-10 w-10 items-center justify-center rounded-full text-stone-600 transition hover:bg-white hover:shadow-sm"
+                      aria-label="Decrease quantity"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </button>
+                    <span className="min-w-[2rem] text-center text-sm font-bold tabular-nums text-stone-900">
+                      {getCartQty(menuDetailItem._id)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => addToCart(menuDetailItem)}
+                      className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-sm transition hover:brightness-105 active:scale-95"
+                      aria-label="Increase quantity"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {cancelModal && (
         <>

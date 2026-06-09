@@ -12,6 +12,8 @@ export const categorySchema = Joi.object({
 export const menuItemSchema = Joi.object({
   name: Joi.string().required().trim(),
   description: Joi.string().allow(""),
+  ingredients: Joi.string().allow("", null).max(5000).trim(),
+  image: Joi.string().allow("", null).max(2048).trim(),
   categoryId: Joi.string().required(),
   basePrice: Joi.number().min(0).required(),
   isVeg: Joi.boolean(),

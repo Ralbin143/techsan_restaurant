@@ -27,6 +27,8 @@ const menuItemSchema = new mongoose.Schema(
     categoryId: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true, index: true },
     name: { type: String, required: true },
     description: String,
+    /** Ingredients, allergens, or other guest-facing detail (plain text / multiline). */
+    ingredients: String,
     image: String,
     basePrice: { type: Number, required: true },
     variants: [variantSchema],

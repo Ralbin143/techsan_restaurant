@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { MenuItemThumb } from "@/components/menu/MenuItemThumb";
 import { formatCurrency } from "@/lib/utils";
 import { dispatchBranchChanged } from "@/lib/orderSocket";
 import { useCustomerAlerts } from "@/contexts/CustomerAlertsContext";
@@ -24,6 +25,7 @@ interface MenuItem {
   _id: string;
   name: string;
   basePrice: number;
+  image?: string | null;
   isAvailable: boolean;
 }
 
@@ -592,10 +594,13 @@ export default function OrdersPage() {
                       key={item._id}
                       type="button"
                       onClick={() => addToCart(item)}
-                      className="text-left p-2 border rounded-lg hover:border-orange-500 text-sm dark:border-slate-700"
+                      className="text-left p-2 border rounded-lg hover:border-orange-500 text-sm dark:border-slate-700 flex gap-2 items-start"
                     >
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-orange-600">₹{item.basePrice}</p>
+                      <MenuItemThumb src={item.image} name={item.name} />
+                      <span className="min-w-0">
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-orange-600">₹{item.basePrice}</p>
+                      </span>
                     </button>
                   ))}
                 </div>
